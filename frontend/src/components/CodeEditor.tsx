@@ -91,7 +91,8 @@ export default function CodeEditor({
             <textarea
               value={userInput}
               onChange={(e) => onInputChange(e.target.value)}
-              placeholder="Enter input values here (one per line)&#x0a;Example:&#x0a;5&#x0a;10&#x0a;15"
+              aria-label="Program input, one value per line"
+              placeholder="Enter each input value on its own line. Example:\n5\n10\n15"
               className="h-full w-full resize-none rounded-lg border border-ink-700 bg-ink-900 p-3 font-mono text-xs text-paper placeholder:text-paper/30 focus:outline-none focus:ring-2 focus:ring-signal/50"
             />
           </div>
@@ -105,15 +106,15 @@ export default function CodeEditor({
           <ul className="space-y-1 text-xs text-paper/70">
             <li className="flex gap-2">
               <span className="text-signal">•</span>
-              <span>Use <code className="rounded bg-ink-800 px-1 py-0.5 text-[10px]">input()</code> in Python</span>
+              <span>Enter values here before running. If the program needs input, GraphMind will prompt you.</span>
             </li>
             <li className="flex gap-2">
               <span className="text-signal">•</span>
-              <span>One value per line</span>
+              <span>Put one response on each line. Values are read in order.</span>
             </li>
             <li className="flex gap-2">
               <span className="text-signal">•</span>
-              <span>Works with loops and multiple inputs</span>
+              <span>Keep the input box empty when the program does not read input.</span>
             </li>
           </ul>
         </div>

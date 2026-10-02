@@ -47,6 +47,7 @@ export default function Home() {
   const [showImport, setShowImport] = useState(false);
   const [showSessions, setShowSessions] = useState(false);
   const [sessions, setSessions] = useState<{ id: string; name: string; language: LanguageId; code: string }[]>([]);
+  const [showInputPrompt, setShowInputPrompt] = useState(false);
 
   function languageForPath(path: string): LanguageId {
     const extension = path.split(".").pop()?.toLowerCase();
@@ -96,7 +97,13 @@ export default function Home() {
     }
   }
 
-  async function handleRun() {
+  async function handleRun(confirmInput = false) {
+    const mayReadInput = /\b(input\s*\(|readLine\s*\(|Scanner\s*\(|BufferedReader|fmt\.Scan|scanf\s*\(|cin\s*>>|getline\s*\(|getchar\s*\(|readline\s*\(|read\.table\s*\(|readLines\s*\()/i.test(code);
+    if (!confirmInput && mayReadInput && !userInput.trim()) {
+      setShowInputPrompt(true);
+      return;
+    }
+    setShowInputPrompt(false);
     setIsRunning(true);
     setConnectionError(null);
     try {
@@ -227,14 +234,27 @@ export default function Home() {
         )}
       </main>
 
-      {traceResult && traceResult.supported && (
-        <footer className="flex items-center gap-2 border-t border-ink-700 bg-ink-900 px-5 py-2 text-xs text-paper/60">
-          <Terminal className="h-3.5 w-3.5" />
-          <span className="font-mono">
-            {traceResult.error ? traceResult.error : traceResult.stdout || "(no output)"}
-          </span>
+      {traceResult && (
+        <footer className="grid max-h-36 grid-cols-2 gap-3 overflow-auto border-t border-ink-700 bg-ink-950 px-5 py-2 text-xs">
+          <section aria-label="Program output" className="min-w-0">
+            <div className="mb-1 flex items-center gap-1.5 font-semibold uppercase tracking-wide text-paper/50"><Terminal className="h-3.5 w-3.5" /> Output</div>
+            <pre className="max-h-20 overflow-auto whitespace-pre-wrap break-words font-mono text-paper/80">{traceResult.stdout || "(no output)"}</pre>
+          </section>
+          <section aria-label="Execution status" className="min-w-0 border-l border-ink-700 pl-3">
+            <div className="mb-1 font-semibold uppercase tracking-wide text-paper/50">{traceResult.error ? "Error" : "Status"}</div>
+            <pre className={`max-h-20 overflow-auto whitespace-pre-wrap break-words font-mono ${traceResult.error ? "text-node-condition" : "text-paper/70"}`}>{traceResult.error ?? traceResult.message ?? "Execution completed."}</pre>
+          </section>
         </footer>
       )}
+
+      {showInputPrompt && <div className="fixed inset-0 z-30 flex items-center justify-center bg-black/70 p-4" role="dialog" aria-modal="true" aria-labelledby="input-prompt-title">
+        <section className="w-full max-w-lg rounded-xl border border-signal/50 bg-ink-950 p-5 shadow-2xl">
+          <h2 id="input-prompt-title" className="text-lg font-semibold">This program needs input</h2>
+          <p className="mt-2 text-sm text-paper/60">Enter each value on its own line. GraphMind will send these values to the program as it runs.</p>
+          <textarea autoFocus value={userInput} onChange={(event) => setUserInput(event.target.value)} placeholder="For example:\n5\n10" className="mt-4 h-32 w-full resize-y rounded-lg border border-ink-700 bg-ink-900 p-3 font-mono text-sm text-paper placeholder:text-paper/30 focus:outline-none focus:ring-2 focus:ring-signal/50" />
+          <div className="mt-4 flex justify-end gap-2"><button onClick={() => setShowInputPrompt(false)} className="rounded-lg border border-ink-600 px-3 py-2 text-sm text-paper/70 hover:bg-ink-800">Cancel</button><button onClick={() => handleRun(true)} disabled={!userInput.trim()} className="rounded-lg bg-signal px-4 py-2 text-sm font-semibold text-ink-950 disabled:cursor-not-allowed disabled:opacity-50">Run program</button></div>
+        </section>
+      </div>}
 
       {(showImport || showSessions) && <div className="fixed inset-0 z-20 flex items-center justify-center bg-black/60 p-4">
         <section className="max-h-[80vh] w-full max-w-xl overflow-auto rounded-xl border border-ink-700 bg-ink-950 p-5 shadow-2xl">

@@ -1,17 +1,19 @@
 # GraphMind
 
 GraphMind is a browser-based code inspector for structural code graphs,
-step-by-step Python tracing, and empirical complexity estimates. It combines a
-Monaco editor, a React Flow canvas, a variable and call-stack inspector, and a
-Chart.js benchmark view.
+step-by-step Python tracing, multi-language execution, and empirical complexity
+estimates. It combines a Monaco editor, a React Flow canvas, a variable and
+call-stack inspector, and a Chart.js benchmark view.
 
 ## What it supports
 
 - **Editor and structural graph:** Python, JavaScript, TypeScript, C, C++, Java,
   Go, and R, parsed with Tree-sitter.
-- **Execution trace and complexity benchmark:** Python. Other languages remain
-  available for structural inspection and are reported as unsupported for
-  execution instead of returning fabricated traces.
+- **Program execution:** Python, JavaScript, TypeScript, C, C++, Java, Go, and R.
+  The backend captures standard output and errors for every language. Detailed
+  variable-by-variable step tracing and empirical complexity benchmarking are
+  currently available for Python; other languages show their output and any
+  source line reported by the compiler or runtime.
 - **Repository import:** Browse supported source files in public GitHub
   repositories and load a selected file into the editor.
 - **Saved sessions:** Store and reopen code and language selections in SQLite.
@@ -24,9 +26,33 @@ use of each language.
 
 ## Run locally
 
-Requirements: Python 3.10+, Node.js 20+, and npm.
+Requirements for the full language set: Docker Desktop with Docker Compose.
+The container installs the runtimes and compilers. For running the backend
+directly, Python 3.10+, Node.js, TypeScript (`tsc`), a JDK, GCC/G++, Go, and R
+must be installed separately; languages without a local runtime will show a
+message naming the missing tool. Node.js and JavaScript/TypeScript, JDK/Java,
+and npm are also needed for the frontend.
 
-Start the backend in one terminal:
+To run the backend and its language runtimes in Docker, from the repository
+root run:
+
+```powershell
+docker compose up --build
+```
+
+Then start the frontend in another terminal:
+
+```powershell
+cd frontend
+npm ci
+"NEXT_PUBLIC_API_BASE=http://localhost:8000" | Set-Content .env.local
+npm run dev
+```
+
+Open <http://localhost:3000>. Stop the services with `Ctrl+C` and
+`docker compose down`.
+
+For a Python-only backend using the local environment, start it in one terminal:
 
 ```powershell
 cd backend
@@ -53,7 +79,8 @@ Open <http://localhost:3000>. The backend API is available at
 
 - `GET /api/health` - backend health check.
 - `POST /api/parse` - Tree-sitter structure nodes and relationships.
-- `POST /api/trace` - Python execution frames, output, and captured errors.
+- `POST /api/trace` - execution output and captured errors; Python also returns
+  detailed step frames.
 - `POST /api/complexity` - Python step counts for N = 10, 50, 100, 500, and
   1,000 with a best-fit Big-O estimate.
 - `POST /api/github/import` and `/api/github/file` - public repository listing
@@ -75,10 +102,11 @@ API rate limits. Render persistent disks require a paid compute plan; the
 manifest selects Render's smallest paid plan so the SQLite volume is available.
 
 The local Docker Compose setup uses a named volume for SQLite and applies
-container resource limits. The execution worker has a short timeout, bounded
-output and step counts, and restricted builtins. This is defense in depth, not
-a complete security boundary for running arbitrary hostile code; keep the API
-private or add a stronger operating-system sandbox before exposing it publicly.
+container resource limits. Programs run with a timeout in temporary folders;
+Python tracing also has bounded output and step counts. This is defense in
+depth, not a complete security boundary for running arbitrary hostile code;
+keep the API private or add a stronger operating-system sandbox before
+exposing it publicly.
 
 ## Project layout
 

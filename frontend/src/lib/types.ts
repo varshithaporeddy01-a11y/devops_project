@@ -13,8 +13,8 @@ export interface CallInfo {
 export interface TraceFrame {
   step: number;
   activeLine: number;
-  event: "line" | "call" | "return";
-  operation: "READ" | "WRITE" | "COMPARE" | "CALL" | "RETURN" | "LOOP" | "EXEC";
+  event: "line" | "call" | "return" | "exception";
+  operation: "READ" | "WRITE" | "COMPARE" | "CALL" | "RETURN" | "LOOP" | "EXEC" | "ERROR";
   description: string;
   callStack: string[];
   variables: Record<string, unknown>;

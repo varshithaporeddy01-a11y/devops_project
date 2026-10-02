@@ -11,7 +11,7 @@ services:
       - graphmind-data:/app/data
     read_only: true
     tmpfs:
-      - /tmp:rw,noexec,nosuid,size=64m
+      - /tmp:rw,nosuid,size=256m
     cap_drop:
       - ALL
     security_opt:

@@ -107,7 +107,7 @@ def execute(payload: dict[str, Any]) -> dict[str, Any]:
     old_stdout, old_trace = sys.stdout, sys.gettrace()
     def tracer(frame, event, arg):
         nonlocal steps
-        if frame.f_code.co_filename != "<graphmind-user>" or event not in ("call", "line", "return"): return tracer
+        if frame.f_code.co_filename != "<graphmind-user>" or event not in ("call", "line", "return", "exception"): return tracer
         steps += 1
         if steps > int(payload.get("max_steps", 5000)): raise LimitError(f"Execution exceeded {payload.get('max_steps')} traced steps; possible infinite loop.")
         local = {k: v for k, v in frame.f_locals.items() if not k.startswith("__")}
@@ -137,13 +137,14 @@ def execute(payload: dict[str, Any]) -> dict[str, Any]:
                     iteration = variable_value + 1
             if iteration > 0:
                 loop_info = {"var": variable, "iteration": iteration, "total": _loop_total(active_loop, local)}
-        operation = "LOOP" if re.match(r"(for|while)\b",text) else "COMPARE" if re.match(r"(if|elif|while)\b",text) else "WRITE" if re.search(r"(?<![=!<>])=(?!=)",text) else "RETURN" if text.startswith("return") or event=="return" else "CALL" if event=="call" else "EXEC"
+        operation = "ERROR" if event == "exception" else "LOOP" if re.match(r"(for|while)\b",text) else "COMPARE" if re.match(r"(if|elif|while)\b",text) else "WRITE" if re.search(r"(?<![=!<>])=(?!=)",text) else "RETURN" if text.startswith("return") or event=="return" else "CALL" if event=="call" else "EXEC"
         stack=[]; current=frame
         while current:
             if current.f_code.co_filename=="<graphmind-user>": stack.append(current.f_code.co_name)
             current=current.f_back
         stack.reverse()
-        frames.append({"step":steps,"activeLine":line,"event":event,"operation":operation,"description":f"Step {steps}: {text or event}","callStack":stack,"variables":{k:safe(v) for k,v in local.items() if not isinstance(v,(list,tuple))},"arrayName":array_name,"arrayState":safe(array),"pointers":pointers,"loop":loop_info,"callInfo":{"function":frame.f_code.co_name,"value":safe(arg)} if event=="return" else None})
+        description = f"{type(arg[1]).__name__}: {arg[1]}" if event == "exception" and isinstance(arg, tuple) and len(arg) > 1 else f"Step {steps}: {text or event}"
+        frames.append({"step":steps,"activeLine":line,"event":event,"operation":operation,"description":description,"callStack":stack,"variables":{k:safe(v) for k,v in local.items() if not isinstance(v,(list,tuple))},"arrayName":array_name,"arrayState":safe(array),"pointers":pointers,"loop":loop_info,"callInfo":{"function":frame.f_code.co_name,"value":safe(arg)} if event=="return" else None})
         if event == "return":
             frame_id = id(frame)
             for key in [key for key in loop_counters if key[0] == frame_id]:
@@ -153,7 +154,10 @@ def execute(payload: dict[str, Any]) -> dict[str, Any]:
         compile(code,"<graphmind-user>","exec")
         sys.stdout=output; sys.settrace(tracer); exec(compile(code,"<graphmind-user>","exec"),env,env)
         return {"frames":frames,"stdout":output.getvalue(),"error":None}
-    except SyntaxError as exc: return {"frames":[],"stdout":output.getvalue(),"error":f"SyntaxError: {exc.msg} (line {exc.lineno})"}
+    except SyntaxError as exc:
+        error = f"SyntaxError: {exc.msg} (line {exc.lineno})"
+        frames.append({"step":len(frames)+1,"activeLine":exc.lineno or 1,"event":"exception","operation":"ERROR","description":error,"callStack":[],"variables":{},"arrayName":None,"arrayState":[],"pointers":{},"loop":None,"callInfo":None})
+        return {"frames":frames,"stdout":output.getvalue(),"error":error}
     except Exception as exc: return {"frames":frames,"stdout":output.getvalue(),"error":f"{type(exc).__name__}: {exc}"}
     finally: sys.settrace(old_trace); sys.stdout=old_stdout
 

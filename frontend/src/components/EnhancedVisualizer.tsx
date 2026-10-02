@@ -34,6 +34,7 @@ const OPERATION_STYLE: Record<
   RETURN: { label: "RETURN", badge: "bg-node-call/20 text-node-call border-node-call/40", box: "border-node-call bg-node-call/15", text: "text-node-call" },
   LOOP: { label: "LOOP", badge: "bg-node-loop/20 text-node-loop border-node-loop/40", box: "border-node-loop bg-node-loop/15", text: "text-node-loop" },
   EXEC: { label: "EXEC", badge: "bg-ink-600/40 text-paper/60 border-ink-600", box: "border-ink-600 bg-ink-800", text: "text-paper/60" },
+  ERROR: { label: "ERROR", badge: "bg-node-condition/20 text-node-condition border-node-condition/60", box: "border-node-condition bg-node-condition/20", text: "text-node-condition" },
 };
 
 export default function EnhancedVisualizer({ frames, supported, message, code }: EnhancedVisualizerProps) {
@@ -93,7 +94,7 @@ export default function EnhancedVisualizer({ frames, supported, message, code }:
   if (frames.length === 0) {
     return (
       <div className="flex h-full items-center justify-center text-sm text-paper/40">
-        Run your code to see live variable, array, and call-stack state here.
+        {message ?? "Run your code to see live variable, array, and call-stack state here."}
       </div>
     );
   }
@@ -298,11 +299,11 @@ export default function EnhancedVisualizer({ frames, supported, message, code }:
                     ref={isActive ? activeLineRef : null}
                     className={`flex gap-2 px-2 py-0.5 rounded transition-colors ${
                       isActive
-                        ? 'bg-signal/30 border-l-2 border-signal text-paper font-medium'
+                        ? frame.operation === "ERROR" ? 'bg-node-condition/30 border-l-2 border-node-condition text-paper font-medium' : 'bg-signal/30 border-l-2 border-signal text-paper font-medium'
                         : 'text-paper/60 hover:bg-ink-900/50'
                     }`}
                   >
-                    <span className={`w-6 shrink-0 text-right select-none ${isActive ? 'text-signal font-bold' : 'text-paper/30'}`}>
+                    <span className={`w-6 shrink-0 text-right select-none ${isActive ? (frame.operation === "ERROR" ? 'text-node-condition font-bold' : 'text-signal font-bold') : 'text-paper/30'}`}>
                       {lineNum}
                     </span>
                     <span className="whitespace-pre">{line || ' '}</span>
