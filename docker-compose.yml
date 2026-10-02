@@ -6,6 +6,7 @@ services:
     environment:
       FRONTEND_ORIGIN: http://localhost:3000
       DATABASE_PATH: /app/data/graphmind.db
+      TREE_SITTER_CACHE_DIR: /app/data/parsers
     volumes:
       - graphmind-data:/app/data
     read_only: true

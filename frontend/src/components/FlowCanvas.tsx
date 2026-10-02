@@ -1,10 +1,11 @@
 "use client";
 
-import { useMemo } from "react";
+import { useMemo, useState } from "react";
 import ReactFlow, {
   Background,
   Controls,
   Edge,
+  NodeMouseHandler,
   MarkerType,
   Node,
   Position,
@@ -32,7 +33,7 @@ interface FlowCanvasProps {
 
 /** Simple layered (Sugiyama-lite) layout using only "child" edges as the tree. */
 function computeLayout(nodes: GraphNode[], edges: GraphEdge[]) {
-  const childEdges = edges.filter((e) => e.type === "child");
+  const childEdges = edges.filter((e) => e.type === "child" || e.type === "import");
   const childrenOf = new Map<string, string[]>();
   const hasParent = new Set<string>();
 
@@ -74,7 +75,32 @@ function computeLayout(nodes: GraphNode[], edges: GraphEdge[]) {
 }
 
 export default function FlowCanvas({ nodes, edges, activeLine }: FlowCanvasProps) {
+  const [selectedNode, setSelectedNode] = useState<string | null>(null);
   const positions = useMemo(() => computeLayout(nodes, edges), [nodes, edges]);
+  const related = useMemo(() => {
+    const dependencies = edges.filter((edge) => edge.type === "call" || edge.type === "import");
+    const upstream = new Set<string>();
+    const downstream = new Set<string>();
+    if (!selectedNode) return { upstream, downstream, edgeIds: new Set<string>() };
+    const walk = (start: string, incoming: boolean, visited: Set<string>) => {
+      const queue = [start];
+      visited.add(start);
+      while (queue.length) {
+        const current = queue.shift()!;
+        for (const edge of dependencies) {
+          const next = incoming
+            ? edge.target === current ? edge.source : null
+            : edge.source === current ? edge.target : null;
+          if (next && !visited.has(next)) { visited.add(next); queue.push(next); }
+        }
+      }
+    };
+    walk(selectedNode, true, upstream);
+    walk(selectedNode, false, downstream);
+    const pathNodes = new Set([...upstream, ...downstream, selectedNode]);
+    const edgeIds = new Set(dependencies.filter((edge) => pathNodes.has(edge.source) && pathNodes.has(edge.target)).map((edge) => edge.id));
+    return { upstream, downstream, edgeIds };
+  }, [edges, selectedNode]);
 
   const flowNodes: Node[] = useMemo(
     () =>
@@ -82,6 +108,8 @@ export default function FlowCanvas({ nodes, edges, activeLine }: FlowCanvasProps
         const pos = positions.get(n.id) ?? { x: 0, y: 0 };
         const isActive =
           activeLine !== null && n.startLine <= activeLine && activeLine <= n.endLine;
+        const isSelected = selectedNode === n.id;
+        const isRelated = related.upstream.has(n.id) || related.downstream.has(n.id);
         const color = CATEGORY_COLOR[n.category] ?? CATEGORY_COLOR.module;
         return {
           id: n.id,
@@ -92,33 +120,40 @@ export default function FlowCanvas({ nodes, edges, activeLine }: FlowCanvasProps
           style: {
             border: `1.5px solid ${color}`,
             borderRadius: 8,
-            background: isActive ? `${color}33` : "#191c26",
+            background: isSelected ? `${color}66` : isRelated ? `${color}2b` : isActive ? `${color}33` : "#191c26",
             color: "#eef0f5",
             fontSize: 12,
             fontFamily: "JetBrains Mono, ui-monospace, monospace",
             padding: "8px 10px",
             width: 200,
-            boxShadow: isActive ? `0 0 0 2px ${color}` : "none",
+            boxShadow: isSelected ? `0 0 0 3px ${color}` : isActive ? `0 0 0 2px ${color}` : "none",
           },
         };
       }),
-    [nodes, positions, activeLine]
+    [nodes, positions, activeLine, selectedNode, related]
   );
 
   const flowEdges: Edge[] = useMemo(
     () =>
       edges
-        .filter((e) => e.type === "child")
+        .filter((e) => e.type === "child" || e.type === "call" || e.type === "import")
         .map((e) => ({
           id: e.id,
           source: e.source,
           target: e.target,
-          animated: false,
-          style: { stroke: "#333849" },
-          markerEnd: { type: MarkerType.ArrowClosed, color: "#333849" },
+          label: e.type === "call" ? "calls" : e.type === "import" ? "imports" : undefined,
+          animated: related.edgeIds.has(e.id),
+          style: {
+            stroke: related.edgeIds.has(e.id) ? "#e8a33d" : e.type === "call" ? "#5b9ee8" : e.type === "import" ? "#9aa2b8" : "#333849",
+            strokeWidth: related.edgeIds.has(e.id) ? 2.5 : 1,
+            strokeDasharray: e.type === "call" || e.type === "import" ? "5 4" : undefined,
+          },
+          markerEnd: { type: MarkerType.ArrowClosed, color: related.edgeIds.has(e.id) ? "#e8a33d" : "#333849" },
         })),
-    [edges]
+    [edges, related.edgeIds]
   );
+
+  const handleNodeClick: NodeMouseHandler = (_event, node) => setSelectedNode(node.id);
 
   if (nodes.length === 0) {
     return (
@@ -132,6 +167,8 @@ export default function FlowCanvas({ nodes, edges, activeLine }: FlowCanvasProps
     <ReactFlow
       nodes={flowNodes}
       edges={flowEdges}
+      onNodeClick={handleNodeClick}
+      onPaneClick={() => setSelectedNode(null)}
       fitView
       proOptions={{ hideAttribution: true }}
       className="bg-ink-950"

@@ -24,6 +24,7 @@ const REFERENCE_MODELS: Record<string, (n: number) => number> = {
   "O(N)": (n) => n,
   "O(N log N)": (n) => n * Math.log2(Math.max(n, 2)),
   "O(N^2)": (n) => n * n,
+  "O(N^3)": (n) => n * n * n,
 };
 
 const REFERENCE_COLORS: Record<string, string> = {
@@ -32,6 +33,7 @@ const REFERENCE_COLORS: Record<string, string> = {
   "O(N)": "#3fc5b7",
   "O(N log N)": "#8b7cf6",
   "O(N^2)": "#f0648c",
+  "O(N^3)": "#f04444",
 };
 
 function logSpace(min: number, max: number, count: number): number[] {

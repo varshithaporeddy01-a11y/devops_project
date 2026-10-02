@@ -66,7 +66,7 @@ export interface GraphEdge {
   id: string;
   source: string;
   target: string;
-  type: "child" | "flow";
+  type: "child" | "flow" | "call" | "import";
 }
 
 export const API_BASE = process.env.NEXT_PUBLIC_API_BASE ?? "http://localhost:8000";
@@ -74,6 +74,7 @@ export const API_BASE = process.env.NEXT_PUBLIC_API_BASE ?? "http://localhost:80
 export const LANGUAGES = [
   { id: "python", label: "Python" },
   { id: "javascript", label: "JavaScript" },
+  { id: "typescript", label: "TypeScript" },
   { id: "cpp", label: "C++" },
   { id: "java", label: "Java" },
   { id: "c", label: "C" },
@@ -100,6 +101,17 @@ result = bubble_sort(numbers)
 print("Sorted:", result)
 `,
   javascript: `function add(a, b) {
+  return a + b;
+}
+
+let total = 0;
+for (let i = 0; i < 4; i++) {
+  total = add(total, i);
+}
+
+console.log(total);
+`,
+  typescript: `function add(a: number, b: number): number {
   return a + b;
 }
 

@@ -2,6 +2,7 @@
 from __future__ import annotations
 
 import json
+import os
 import subprocess
 import sys
 import tempfile
@@ -17,12 +18,18 @@ BENCHMARK_N_VALUES = [10, 50, 100, 500, 1_000]
 
 def _run_worker(payload: dict[str, Any]) -> dict[str, Any]:
     worker = Path(__file__).with_name("worker.py")
+    worker_env = {
+        key: os.environ[key]
+        for key in ("PATH", "SYSTEMROOT", "WINDIR", "TEMP", "TMP")
+        if key in os.environ
+    }
+    worker_env.update({"PYTHONIOENCODING": "utf-8", "PYTHONDONTWRITEBYTECODE": "1"})
     try:
         with tempfile.TemporaryDirectory(prefix="graphmind-") as cwd:
             completed = subprocess.run(
                 [sys.executable, "-I", str(worker)], input=json.dumps(payload), text=True,
                 encoding="utf-8", capture_output=True, cwd=cwd, timeout=EXECUTION_TIMEOUT_SECONDS,
-                env={"PYTHONIOENCODING": "utf-8", "PYTHONDONTWRITEBYTECODE": "1"},
+                env=worker_env,
             )
     except subprocess.TimeoutExpired:
         return {"error": f"Execution timed out after {EXECUTION_TIMEOUT_SECONDS} seconds."}

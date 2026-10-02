@@ -1,4 +1,5 @@
 .venv/
 .tree-sitter-cache/
+manifest.json
 graphmind.db
 __pycache__/

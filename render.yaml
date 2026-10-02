@@ -2,12 +2,19 @@ services:
   - type: web
     name: graphmind-api
     runtime: python
+    plan: 0.5c-512mb
     rootDir: backend
     buildCommand: pip install -r requirements.txt
     startCommand: uvicorn main:app --host 0.0.0.0 --port $PORT
     healthCheckPath: /api/health
+    disk:
+      name: graphmind-data
+      mountPath: /var/data
+      sizeGB: 1
     envVars:
+      - key: DATABASE_PATH
+        value: /var/data/graphmind.db
+      - key: TREE_SITTER_CACHE_DIR
+        value: /var/data/parsers
       - key: FRONTEND_ORIGIN
         sync: false
-      - key: TREE_SITTER_CACHE_DIR
-        value: /tmp/graphmind-parsers

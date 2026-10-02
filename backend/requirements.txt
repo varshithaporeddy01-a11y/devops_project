@@ -2,4 +2,5 @@ fastapi==0.115.0
 uvicorn[standard]==0.30.6
 pydantic==2.12.5
 httpx==0.28.1
+tree-sitter-language-pack==1.6.1
 pytest==8.3.5
