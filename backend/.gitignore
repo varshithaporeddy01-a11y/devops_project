@@ -1,0 +1,4 @@
+.venv/
+.tree-sitter-cache/
+graphmind.db
+__pycache__/

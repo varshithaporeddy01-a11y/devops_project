@@ -1,0 +1,25 @@
+@import "tailwindcss";
+@config "../../tailwind.config.js";
+
+:root {
+  --background: #0d1016;
+  --foreground: #eef0f5;
+}
+
+@theme inline {
+  --color-background: var(--background);
+  --color-foreground: var(--foreground);
+}
+
+body {
+  background: var(--background);
+  color: var(--foreground);
+  font-family: Inter, ui-sans-serif, system-ui, -apple-system, sans-serif;
+}
+
+/* React Flow theming to match the ink/paper palette */
+.react-flow__attribution {
+  background: transparent !important;
+  color: #4a5068 !important;
+}
+

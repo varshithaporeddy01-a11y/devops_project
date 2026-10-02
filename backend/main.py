@@ -20,8 +20,12 @@ from pydantic import BaseModel, Field
 
 from parsers.ast_parser import parse_code_to_graph
 from tracer.execution import run_complexity_benchmark, trace_execution
+from github_import import repository_file, repository_files
+from storage import create_session, delete_session, get_session, list_sessions
 
-FRONTEND_ORIGIN = os.environ.get("FRONTEND_ORIGIN", "http://localhost:3000")
+FRONTEND_ORIGINS = [origin.strip() for origin in os.environ.get(
+    "FRONTEND_ORIGIN", "http://localhost:3000"
+).split(",") if origin.strip()]
 
 app = FastAPI(
     title="GraphMind Standard API",
@@ -31,7 +35,7 @@ app = FastAPI(
 
 app.add_middleware(
     CORSMiddleware,
-    allow_origins=[FRONTEND_ORIGIN],
+    allow_origins=FRONTEND_ORIGINS,
     allow_credentials=True,
     allow_methods=["*"],
     allow_headers=["*"],
@@ -39,7 +43,7 @@ app.add_middleware(
 
 
 class ParseRequest(BaseModel):
-    code: str = Field(..., description="Source code to parse")
+    code: str = Field(..., max_length=200_000, description="Source code to parse")
     language: str = Field(..., description="Language identifier")
 
 
@@ -50,8 +54,9 @@ class ParseResponse(BaseModel):
 
 
 class TraceRequest(BaseModel):
-    code: str = Field(..., description="Source code to execute and trace")
+    code: str = Field(..., max_length=200_000, description="Source code to execute and trace")
     language: str = Field(..., description="Language identifier")
+    input: str = Field(default="", max_length=20_000, description="Newline-separated stdin")
 
 
 class LoopInfo(BaseModel):
@@ -90,8 +95,9 @@ class TraceResponse(BaseModel):
 
 
 class ComplexityRequest(BaseModel):
-    code: str = Field(..., description="Source code to benchmark across N")
+    code: str = Field(..., max_length=200_000, description="Source code to benchmark across N")
     language: str = Field(..., description="Language identifier")
+    input: str = Field(default="", max_length=20_000, description="Newline-separated stdin")
 
 
 class ComplexityResponse(BaseModel):
@@ -101,6 +107,17 @@ class ComplexityResponse(BaseModel):
     step_counts: list[int]
     estimated_big_o: str | None
     error: str | None
+
+class SessionRequest(BaseModel):
+    name: str = Field(default="Untitled analysis", max_length=120)
+    language: str
+    code: str = Field(max_length=200_000)
+
+class GitHubImportRequest(BaseModel):
+    url: str = Field(max_length=500)
+
+class GitHubFileRequest(GitHubImportRequest):
+    path: str = Field(max_length=500)
 
 
 @app.get("/api/health")
@@ -119,11 +136,38 @@ def parse(payload: ParseRequest) -> ParseResponse:
 
 @app.post("/api/trace", response_model=TraceResponse)
 def trace(payload: TraceRequest) -> TraceResponse:
-    result = trace_execution(payload.code, payload.language)
+    result = trace_execution(payload.code, payload.language, payload.input)
     return TraceResponse(**result)
 
 
 @app.post("/api/complexity", response_model=ComplexityResponse)
 def complexity(payload: ComplexityRequest) -> ComplexityResponse:
-    result = run_complexity_benchmark(payload.code, payload.language)
+    result = run_complexity_benchmark(payload.code, payload.language, payload.input)
     return ComplexityResponse(**result)
+
+@app.get("/api/sessions")
+def sessions() -> list[dict]: return list_sessions()
+
+@app.post("/api/sessions", status_code=201)
+def save_session(payload: SessionRequest) -> dict: return create_session(payload.name, payload.language, payload.code)
+
+@app.get("/api/sessions/{session_id}")
+def session(session_id: str) -> dict:
+    result=get_session(session_id)
+    if result is None: raise HTTPException(status_code=404, detail="Session not found")
+    return result
+
+@app.delete("/api/sessions/{session_id}")
+def remove_session(session_id: str) -> dict:
+    if not delete_session(session_id): raise HTTPException(status_code=404, detail="Session not found")
+    return {"deleted": True}
+
+@app.post("/api/github/import")
+async def github_import(payload: GitHubImportRequest) -> dict:
+    try: return await repository_files(payload.url, os.environ.get("GITHUB_TOKEN"))
+    except ValueError as exc: raise HTTPException(status_code=400, detail=str(exc)) from exc
+
+@app.post("/api/github/file")
+async def github_file(payload: GitHubFileRequest) -> dict:
+    try: return await repository_file(payload.url, payload.path, os.environ.get("GITHUB_TOKEN"))
+    except ValueError as exc: raise HTTPException(status_code=400, detail=str(exc)) from exc

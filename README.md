@@ -423,3 +423,62 @@ For questions, suggestions, or issues, please open an issue on GitHub or contact
 ---
 
 Built with care for developers and learners everywhere.
+﻿# GraphMind
+
+GraphMind is a browser-based code inspector: edit code, map its structure,
+trace Python state step-by-step, and estimate empirical complexity.
+
+## Run locally
+
+In one PowerShell window:
+
+```powershell
+cd backend
+py -3.14 -m venv .venv
+.\.venv\Scripts\Activate.ps1
+pip install -r requirements.txt
+$env:FRONTEND_ORIGIN = "http://localhost:3000"
+uvicorn main:app --reload --port 8000
+```
+
+In another:
+
+```powershell
+cd frontend
+npm install
+"NEXT_PUBLIC_API_BASE=http://localhost:8000" | Set-Content .env.local
+npm run dev
+```
+
+Open http://localhost:3000. Python has real isolated tracing. The other editor
+languages have structural graphs only; GraphMind reports that distinction in
+the API rather than fabricating execution results.
+
+## Safety and deployment
+
+Every Python run is executed in a short-lived subprocess with a three-second
+timeout, restricted builtins, bounded stdin/stdout, a step cap, and an empty
+working directory. For a public deployment, run the backend in a container
+sandbox with an unprivileged user, no network egress, CPU/memory limits, and a
+read-only filesystem; restricted Python is defense-in-depth, not a complete
+security boundary.
+
+`render.yaml` and `vercel.json` provide deployment entry points. Set
+`NEXT_PUBLIC_API_BASE` on Vercel and `FRONTEND_ORIGIN` on Render to the actual
+public origins. The backend has SQLite session endpoints and a public GitHub
+repository file-tree endpoint; a GitHub token is optional but avoids low
+unauthenticated rate limits. Render's local filesystem is ephemeral, so set
+`DATABASE_PATH` to a mounted persistent disk if history must survive deploys.
+
+### Docker API runtime
+
+For a local production-like backend, install Docker Desktop and run:
+
+```powershell
+docker compose up --build api
+```
+
+The API image runs as an unprivileged user with no Linux capabilities, a
+read-only root filesystem, a bounded temporary directory, and CPU/memory
+limits. The SQLite database is the named `graphmind-data` volume. Keep the
+GitHub token in the deployment environment, never in compose files or source.

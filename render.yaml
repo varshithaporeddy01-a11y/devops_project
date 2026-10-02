@@ -1,0 +1,13 @@
+services:
+  - type: web
+    name: graphmind-api
+    runtime: python
+    rootDir: backend
+    buildCommand: pip install -r requirements.txt
+    startCommand: uvicorn main:app --host 0.0.0.0 --port $PORT
+    healthCheckPath: /api/health
+    envVars:
+      - key: FRONTEND_ORIGIN
+        sync: false
+      - key: TREE_SITTER_CACHE_DIR
+        value: /tmp/graphmind-parsers
